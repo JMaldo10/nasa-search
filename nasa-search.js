@@ -2,83 +2,76 @@
  * Copyright 2024 Jeremy Maldonado
  * @license Apache-2.0, see LICENSE for full text.
  */
-import { LitElement, html, css } from "lit";
-import { DDDSuper } from "@haxtheweb/d-d-d/d-d-d.js";
-import { I18NMixin } from "@haxtheweb/i18n-manager/lib/I18NMixin.js";
+import { LitElement, html, css } from 'lit';
+import "./nasa-image.js";
 
-/**
- * `nasa-search`
- * 
- * @demo index.html
- * @element nasa-search
- */
-export class nasaSearch extends DDDSuper(I18NMixin(LitElement)) {
+export class NasaSearch extends LitElement {
+  static get properties() {
+    return {
+      title: { type: String },
+      loading: { type: Boolean, reflect: true },
+      items: { type: Array },
+      value: { type: String },
+    };
+  }
 
-  static get tag() {
-    return "nasa-search";
+  static get styles() {
+    return css`
+      /* Add your styles here */
+    `;
   }
 
   constructor() {
     super();
-    this.title = "";
-    this.t = this.t || {};
-    this.t = {
-      ...this.t,
-      title: "Title",
-    };
-    this.registerLocalization({
-      context: this,
-      localesPath:
-        new URL("./locales/nasa-search.ar.json", import.meta.url).href +
-        "/../",
-      locales: ["ar", "es", "hi", "zh"],
-    });
+    this.value = '';
+    this.title = 'NASA Image Search';
+    this.loading = false;
+    this.items = [];
   }
 
-  // Lit reactive properties
-  static get properties() {
-    return {
-      ...super.properties,
-      title: { type: String },
-    };
-  }
-
-  // Lit scoped styles
-  static get styles() {
-    return [super.styles,
-    css`
-      :host {
-        display: block;
-        color: var(--ddd-theme-primary);
-        background-color: var(--ddd-theme-accent);
-        font-family: var(--ddd-font-navigation);
-      }
-      .wrapper {
-        margin: var(--ddd-spacing-2);
-        padding: var(--ddd-spacing-4);
-      }
-      h3 span {
-        font-size: var(--nasa-search-label-font-size, var(--ddd-font-size-s));
-      }
-    `];
-  }
-
-  // Lit render the HTML
   render() {
     return html`
-<div class="wrapper">
-  <h3><span>${this.t.title}:</span> ${this.title}</h3>
-  <slot></slot>
-</div>`;
+      <h2>${this.title}</h2>
+      <input id="input" placeholder="Search NASA images" @input="${this.inputChanged}" />
+      <div class="results">
+        ${this.items.map((item) => html`
+          <nasa-image
+            source="${item.links[0].href}"
+            title="${item.data[0].title}"
+            alt="${item.data[0].description || 'Image from NASA'}"
+            secondaryCreator="${item.data[0].secondary_creator || 'Unknown'}"
+          ></nasa-image>
+        `)}
+      </div>
+    `;
   }
 
-  /**
-   * haxProperties integration via file reference
-   */
-  static get haxProperties() {
-    return new URL(`./lib/${this.tag}.haxProperties.json`, import.meta.url)
-      .href;
+  inputChanged(e) {
+    this.value = e.target.value;
+  }
+
+  updated(changedProperties) {
+    if (changedProperties.has('value') && this.value) {
+      this.updateResults(this.value);
+    } else if (changedProperties.has('value') && !this.value) {
+      this.items = [];
+    }
+  }
+
+  updateResults(value) {
+    this.loading = true;
+    fetch(`https://images-api.nasa.gov/search?media_type=image&q=${value}`)
+      .then(response => response.ok ? response.json() : {})
+      .then(data => {
+        if (data.collection) {
+          this.items = data.collection.items;
+        }
+        this.loading = false;
+      });
+  }
+
+  static get tag() {
+    return 'nasa-search';
   }
 }
-
-globalThis.customElements.define(nasaSearch.tag, nasaSearch);
+customElements.define(NasaSearch.tag, NasaSearch);
